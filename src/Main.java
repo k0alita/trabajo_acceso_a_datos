@@ -1,89 +1,109 @@
 import java.io.IOException;
+import java.util.InputMismatchException;
 import java.util.Scanner;
 
+/**
+ * Clase principal que gestiona la interfaz de usuario en consola.
+ */
 public class Main {
-    public static Scanner sc = new Scanner(System.in);
+
+    private static final String RUTA_BBDD = "coches.txt";
+
     public static void main(String[] args) {
-
-        GestorFichero gestor = new GestorFichero("coches.dat");
-
+        GestorFichero gestor = new GestorFichero(RUTA_BBDD);
+        Scanner scanner = new Scanner(System.in);
         boolean salir = false;
 
         while (!salir) {
-            mostrarMenu();
+            System.out.println("\n--- GESTOR DE VEHÍCULOS ---");
+            System.out.println("1. Insertar coche en una posición");
+            System.out.println("2. Ordenar fichero por matrícula");
+            System.out.println("3. Borrar registro por matrícula");
+            System.out.println("4. Borrar registro por posición");
+            System.out.println("5. Modificar registro por posición (Marca y Modelo)");
+            System.out.println("6. Salir");
+            System.out.print("Elige una opción: ");
+
             try {
-                int opcion = leerEntero("Elige una opción: ");
+                int opcion = scanner.nextInt();
+                scanner.nextLine(); // Limpiar buffer
 
                 switch (opcion) {
-                    case 1 -> cargarCsv(gestor);
-                    case 2 -> insertar(gestor);
-                    case 3 -> gestor.ordenarPorMatricula();
-                    case 4 -> borrar(gestor);
-                    case 5 -> modificar(gestor);
-                    case 6 -> mostrarTodos(gestor);
-                    case 0 -> salir = true;
-                    default -> System.out.println(
-                            "Opción no válida.");
+                    case 1:
+                        System.out.print("Posición de inserción: ");
+                        int posInsert = scanner.nextInt();
+                        scanner.nextLine();
+                        System.out.print("Matrícula (max 7 chars): ");
+                        String matricula = scanner.nextLine();
+                        System.out.print("Marca (max 32 chars): ");
+                        String marca = scanner.nextLine();
+                        System.out.print("Modelo (max 32 chars): ");
+                        String modelo = scanner.nextLine();
+
+                        gestor.insertarEnPosicion(posInsert, matricula, marca, modelo);
+                        System.out.println("Coche insertado correctamente.");
+                        break;
+
+                    case 2:
+                        gestor.ordenarPorMatricula();
+                        System.out.println("Fichero ordenado por matrícula.");
+                        break;
+
+                    case 3:
+                        System.out.print("Matrícula a borrar: ");
+                        String matBorrar = scanner.nextLine();
+                        if (gestor.borrarPorMatricula(matBorrar)) {
+                            System.out.println("Registro borrado con éxito.");
+                        } else {
+                            System.out.println("Error: Matrícula no encontrada.");
+                        }
+                        break;
+
+                    case 4:
+                        System.out.print("Posición a borrar: ");
+                        int posBorrar = scanner.nextInt();
+                        if (gestor.borrarPorPosicion(posBorrar)) {
+                            System.out.println("Registro borrado con éxito.");
+                        } else {
+                            System.out.println("Error: Posición inválida.");
+                        }
+                        break;
+
+                    case 5:
+                        System.out.print("Posición a modificar: ");
+                        int posMod = scanner.nextInt();
+                        scanner.nextLine();
+                        System.out.print("Nueva Marca (max 32 chars): ");
+                        String nuevaMarca = scanner.nextLine();
+                        System.out.print("Nuevo Modelo (max 32 chars): ");
+                        String nuevoModelo = scanner.nextLine();
+
+                        if (gestor.modificarPorPosicion(posMod, nuevaMarca, nuevoModelo)) {
+                            System.out.println("Registro modificado con éxito.");
+                        } else {
+                            System.out.println("Error: Posición inválida o registro borrado.");
+                        }
+                        break;
+
+                    case 6:
+                        salir = true;
+                        System.out.println("Saliendo del programa...");
+                        break;
+
+                    default:
+                        System.out.println("Opción no válida.");
                 }
-            } catch (NumberFormatException e) {
-                System.out.printf("Debes introducir un numero");
+            } catch (InputMismatchException e) {
+                System.out.println("Error: Entrada inválida. Debes introducir un número.");
+                scanner.nextLine(); // Limpiar entrada errónea
+            } catch (IllegalArgumentException e) {
+                System.out.println("Error de validación: " + e.getMessage());
             } catch (IOException e) {
-                System.out.printf(e.getMessage());;
+                System.out.println("Error en acceso al fichero: " + e.getMessage());
+            } catch (Exception e) {
+                System.out.println("Error inesperado: " + e.getMessage());
             }
         }
-    }
-
-    private static void mostrarMenu() {
-        System.out.println();
-        System.out.println("===== BASE DE DATOS DE COCHES =====");
-        System.out.println("1. Cargar fichero CSV");
-        System.out.println("2. Insertar coche");
-        System.out.println("3. Ordenar por matrícula");
-        System.out.println("4. Borrar coche");
-        System.out.println("5. Modificar coche");
-        System.out.println("6. Mostrar registros");
-        System.out.println("0. Salir");
-    }
-
-    private static void cargarCsv(GestorFichero gestor) {
-
-    }
-
-    private static void insertar(GestorFichero gestor) throws IOException {
-        int posicion = leerEntero("Introduce la pocision");
-
-        System.out.println("Matricula: ");
-        String matricula = sc.nextLine();
-
-        System.out.println("Marca: ");
-        String marca = sc.nextLine();
-
-        System.out.printf("Modelo: ");
-        String modelo = sc.nextLine();
-
-        gestor.insertar(posicion, matricula, marca, modelo);
-
-        System.out.printf("Registro completado");
-    }
-
-    private static void borrar(GestorFichero gestor) {
-
-    }
-
-    private static void modificar(GestorFichero gestor) {
-
-    }
-
-    private static void mostrarTodos(GestorFichero gestor) {
-
-    }
-
-    private static int leerEntero(String mensaje) {
-        return Integer.parseInt(leerTexto(mensaje));
-    }
-
-    private static String leerTexto(String mensaje) {
-        System.out.print(mensaje);
-        return sc.nextLine().trim();
+        scanner.close();
     }
 }
