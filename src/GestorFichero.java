@@ -1,8 +1,7 @@
 import java.awt.*;
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -46,6 +45,54 @@ class GestorFichero {
         }
     }
 
+    public int cargarCsv(String rutaCSV, String delimitador) throws IOException{
+        File ficheroCSV = new File(rutaCSV);
+        if (!ficheroCSV.exists()) {
+            throw new FileNotFoundException("El fichero CSV no existe en la ruta");
+        }
+
+        int cargados = 0;
+
+        try (BufferedReader br = new BufferedReader(new FileReader(ficheroCSV, StandardCharsets.UTF_8))){
+            String linea;
+            int numeroLinea= 0;
+
+            while ((linea = br.readLine()) != null) {
+                numeroLinea++;
+                linea = linea.trim();
+
+                if (linea.isEmpty()) continue;
+
+                String[] campos = linea.split(delimitador);
+
+                if (campos.length < 3) {
+                    System.out.println("Linea: " + numeroLinea + " se requieres 3 campos");
+                    continue;
+                }
+
+                String matricula = campos[0].trim();
+                String marca = campos[1].trim();
+                String modelo = campos[2].trim();
+
+                if (numeroLinea == 1 && (matricula.equalsIgnoreCase("MATRICULA") || matricula.equalsIgnoreCase("MATRICULA"))) {
+                    continue;
+                }
+
+                try {
+                    File ficheroDatos = new File(this.rutaFichero);
+                    int posicionFinal = ficheroDatos.exists() ? (int) (ficheroDatos.length() / TAMAÑO_TOTAL) : 1;
+
+                    insertarEnPosicion(posicionFinal, matricula, marca, modelo);
+                    cargados++;
+
+                } catch (IllegalArgumentException e) {
+                    System.out.println("Línea " + numeroLinea + " omitida: " + e.getMessage());                }
+
+            }
+        }
+        return cargados;
+    }
+
     public boolean existeMatricula(String matricula) throws IOException {
         File f = new File(this.rutaFichero);
         if (!f.exists()) return false;
@@ -65,6 +112,13 @@ class GestorFichero {
         }
         return false;
     }
+
+    /**
+     * Ordenar alfabeticamente por el campo Matricula
+     * Extrae los registros actuales y los reescribe ordenados en el fichero
+     * @throws IOException
+     */
+
 
     public void ordenarPorMatricula() throws IOException {
         List<byte[]> registros = new ArrayList<>();
