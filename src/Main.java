@@ -78,7 +78,6 @@ public class Main {
                         }
                         break;
                     case 6:
-                        // Dentro del switch del menú en Main.java:
 
                         System.out.print("Ruta del fichero CSV (ej. coches.csv): ");
                         String rutaCSV = scanner.nextLine();

@@ -8,6 +8,7 @@ import java.util.List;
 
 class GestorFichero {
 
+    // Constantes que definen el tamaño de cada campo en bytes
     private static final int TAMAÑO_MATRICULA = 7;
     private static final int TAMAÑO_MARCA = 32;
     private static final int TAMAÑO_MODELO = 32;
@@ -20,6 +21,15 @@ class GestorFichero {
         this.rutaFichero = rutaFichero;
     }
 
+    /**
+     * Insertar un registro en una posicion concreta
+     * @param posicion Posicion donde insertar el registro
+     * @param matricula Matricula del vehiculo
+     * @param marca Marca del vehiculo
+     * @param modelo Modelo del vehiculo
+     * @throws IOException Si se introducen los datos mal
+     * @throws IllegalArgumentException Si la matricula ya existe
+     */
     public void insertarEnPosicion(int posicion, String matricula, String marca, String modelo) throws IOException {
         if (existeMatricula(matricula)) {
             throw new IllegalArgumentException("Error: La matricula " + matricula + " ya existe");
@@ -31,6 +41,7 @@ class GestorFichero {
                 posicion = (int) totalRegistros;
             }
 
+            // Desplazar los registros desde el final hasya la pocision de insercion
             byte[] buffer = new byte[TAMAÑO_TOTAL];
             for (long i = totalRegistros - 1; i>= posicion ; i--) {
                 raf.seek(i * TAMAÑO_TOTAL);
@@ -39,6 +50,7 @@ class GestorFichero {
                 raf.write(buffer);
             }
 
+            // Preparar y escribir el registro
             byte[] nuevoRegistro = construirRegistro(matricula, marca, modelo);
             raf.seek((long) posicion * TAMAÑO_TOTAL);
             raf.write(nuevoRegistro);
@@ -47,6 +59,8 @@ class GestorFichero {
 
     public int cargarCsv(String rutaCSV, String delimitador) throws IOException{
         File ficheroCSV = new File(rutaCSV);
+
+        // Comprobar que el fichero csv existe
         if (!ficheroCSV.exists()) {
             throw new FileNotFoundException("El fichero CSV no existe en la ruta");
         }
@@ -61,10 +75,13 @@ class GestorFichero {
                 numeroLinea++;
                 linea = linea.trim();
 
+                // Omitir las lineas vacias
                 if (linea.isEmpty()) continue;
 
+                // Separar la linea por el delimitador
                 String[] campos = linea.split(delimitador);
 
+                // Verificar que contiene los 3 campos necesarios
                 if (campos.length < 3) {
                     System.out.println("Linea: " + numeroLinea + " se requieres 3 campos");
                     continue;
@@ -74,11 +91,19 @@ class GestorFichero {
                 String marca = campos[1].trim();
                 String modelo = campos[2].trim();
 
+                // Nos saltamos la primera linea si incluye los titulos (Matrícula,Marca,Modelo)
                 if (numeroLinea == 1 && (matricula.equalsIgnoreCase("MATRICULA") || matricula.equalsIgnoreCase("MATRICULA"))) {
                     continue;
                 }
 
+                // Pasamos si la matricula ya existe en la base de datos
+                if (existeMatricula(matricula)) {
+                    System.out.println("Línea " + numeroLinea + " saltada: La matrícula " + matricula + " ya existe.");
+                    continue;
+                }
+
                 try {
+                    // Calcular la ultima posocion disponible para insertarlo al final
                     File ficheroDatos = new File(this.rutaFichero);
                     int posicionFinal = ficheroDatos.exists() ? (int) (ficheroDatos.length() / TAMAÑO_TOTAL) : 1;
 
@@ -86,6 +111,7 @@ class GestorFichero {
                     cargados++;
 
                 } catch (IllegalArgumentException e) {
+                    // Captura errores si los datos superar el tamaño de bytes definidos
                     System.out.println("Línea " + numeroLinea + " omitida: " + e.getMessage());                }
 
             }
