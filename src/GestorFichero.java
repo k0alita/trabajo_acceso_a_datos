@@ -92,7 +92,7 @@ class GestorFichero {
                 String modelo = campos[2].trim();
 
                 // Nos saltamos la primera linea si incluye los titulos (Matrícula,Marca,Modelo)
-                if (numeroLinea == 1 && (matricula.equalsIgnoreCase("MATRICULA") || matricula.equalsIgnoreCase("MATRICULA"))) {
+                if (numeroLinea == 1 && (matricula.equalsIgnoreCase("MATRICULA") || matricula.equalsIgnoreCase("MATRÍCULA"))) {
                     continue;
                 }
 
@@ -105,7 +105,7 @@ class GestorFichero {
                 try {
                     // Calcular la ultima posocion disponible para insertarlo al final
                     File ficheroDatos = new File(this.rutaFichero);
-                    int posicionFinal = ficheroDatos.exists() ? (int) (ficheroDatos.length() / TAMAÑO_TOTAL) : 1;
+                    int posicionFinal = ficheroDatos.exists() ? (int) (ficheroDatos.length() / TAMAÑO_TOTAL) : 0;
 
                     insertarEnPosicion(posicionFinal, matricula, marca, modelo);
                     cargados++;
@@ -119,32 +119,11 @@ class GestorFichero {
         return cargados;
     }
 
-    public boolean existeMatricula(String matricula) throws IOException {
-        File f = new File(this.rutaFichero);
-        if (!f.exists()) return false;
-
-        try(RandomAccessFile raf = new RandomAccessFile(this.rutaFichero, "r")) {
-            long total = raf.length() / TAMAÑO_TOTAL;
-            for (long i = 0;  i < total; i++) {
-                byte[] buffer = new byte[TAMAÑO_TOTAL];
-                raf.read(buffer);
-                if (buffer[0] != 0) {
-                    String matriculaLeida = new String(buffer, 0, TAMAÑO_MATRICULA, StandardCharsets.UTF_8).trim();
-                    if (matriculaLeida.equals(matricula)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
     /**
      * Ordenar alfabeticamente por el campo Matricula
      * Extrae los registros actuales y los reescribe ordenados en el fichero
-     * @throws IOException
+     * @throws IOException Si se introducen los datos mal
      */
-
 
     public void ordenarPorMatricula() throws IOException {
         List<byte[]> registros = new ArrayList<>();
@@ -154,18 +133,20 @@ class GestorFichero {
             for (int i = 0; i < total; i++) {
                 byte[] buffer = new byte[TAMAÑO_TOTAL];
                 raf.read(buffer);
-                if (buffer[0] != 0) {
+                if (buffer[0] != 0) { // Omitir registros borrados lógicamente
                     registros.add(buffer);
                 }
             }
         }
 
+        // Ordenar la lista utilizando los primeros 7 bytes de la matricula
         registros.sort((b1, b2) -> {
             String m1 = new String(b1, 0, TAMAÑO_MATRICULA, StandardCharsets.UTF_8).trim();
             String m2 = new String(b2, 0, TAMAÑO_MATRICULA, StandardCharsets.UTF_8).trim();
             return m1.compareTo(m2);
         });
 
+        // Sobrescribir el fichero con los registros ordenados
         try (RandomAccessFile raf = new RandomAccessFile(this.rutaFichero, "rws")){
             raf.setLength(0);
             for (byte[] reg : registros) {
@@ -174,6 +155,13 @@ class GestorFichero {
 
         }
     }
+
+    /**
+     * Borlla un registro indicando su posicion en el fichero
+     * @param posicion Posicion del regristro (desde 0)
+     * @return true si la posicion es valida y se borro, false en el caso contrario
+     * @throws IOException
+     */
 
     public boolean borrarPorPosicion(int posicion) throws IOException {
         try (RandomAccessFile raf = new RandomAccessFile(this.rutaFichero, "rws")){
@@ -185,6 +173,13 @@ class GestorFichero {
 
         }
     }
+
+    /**
+     * Borra un registro buscando por su matricula
+     * @param matricula Matricula a borrar
+     * @return true si se borro con exito, false si no se encontro
+     * @throws IOException Si se introducen los datos mal
+     */
 
     public boolean borrarPorMatricula(String matricula) throws IOException {
         try (RandomAccessFile raf = new RandomAccessFile(this.rutaFichero, "rws")){
@@ -206,6 +201,67 @@ class GestorFichero {
         return false;
     }
 
+    /**
+     * Modifica la marca y modelo de un registro en una posicion especifica
+     * @param posicion Posicion del registro
+     * @param nuevaMarca Nueva marca a guardar
+     * @param nuevoModelo Nuevo modelo a guardar
+     * @return true si se modifico, false si la posicion no existe o el registro esta borrado
+     * @throws IOException Si se introducen los datos mal
+     */
+
+    public boolean modificarPorPosicion(int posicion, String nuevaMarca, String nuevoModelo) throws IOException {
+        try (RandomAccessFile raf = new RandomAccessFile(this.rutaFichero, "rws")){
+            long posicionFisica = (long) posicion * TAMAÑO_TOTAL;
+            if (posicionFisica >= raf.length()) return false;
+
+            raf.seek(posicionFisica);
+            byte[] primerByte = new byte[1];
+            raf.read(primerByte);
+
+            // Comprobar si esta borrado
+            if (primerByte[0] == 0) return false;
+
+            raf.seek(posicionFisica + TAMAÑO_MATRICULA);
+
+            // Avanzar el puntero saltando la matricula
+            byte[] bufferMarca = formatearABytesFijos("Marca", nuevaMarca, TAMAÑO_MARCA);
+            byte[] bufferModelo = formatearABytesFijos("Modelo", nuevoModelo, TAMAÑO_MODELO);
+
+            raf.write(bufferMarca);
+            raf.write(bufferModelo);
+            return true;
+        }
+    }
+
+    // --- MÉTODOS AUXILIARES ---
+
+    /**
+     * Verifica si la matrícula ya existe en el fichero.
+     */
+    public boolean existeMatricula(String matricula) throws IOException {
+        File f = new File(this.rutaFichero);
+        if (!f.exists()) return false;
+
+        try(RandomAccessFile raf = new RandomAccessFile(this.rutaFichero, "r")) {
+            long total = raf.length() / TAMAÑO_TOTAL;
+            for (long i = 0;  i < total; i++) {
+                byte[] buffer = new byte[TAMAÑO_TOTAL];
+                raf.read(buffer);
+                if (buffer[0] != 0) { // Comprueba que no esta borrada
+                    String matriculaLeida = new String(buffer, 0, TAMAÑO_MATRICULA, StandardCharsets.UTF_8).trim();
+                    if (matriculaLeida.equals(matricula)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Rellena el espacion de un registro con bytes a 0 para simular el borrado
+     */
     private void marcarComoBorrado(RandomAccessFile raf, long posicion) throws IOException {
         raf.seek(posicion * TAMAÑO_TOTAL);
         byte[] bufferVacio = new byte[TAMAÑO_TOTAL];
@@ -213,6 +269,13 @@ class GestorFichero {
         raf.write(bufferVacio);
     }
 
+    /**
+     * Construye un array de byes que representa un registro completo
+     * @param matricula Matricula introducida
+     * @param marca Marca introducida
+     * @param modelo Modelo introducida
+     * @return Devulve el array completo
+     */
 
     private byte[] construirRegistro(String matricula, String marca, String modelo) {
         byte[] registro = new byte[TAMAÑO_TOTAL];
@@ -227,6 +290,10 @@ class GestorFichero {
         return registro;
     }
 
+    /**
+     * Ajusta una cadena a una longitud fija rellenando con espacion
+     */
+
     private byte[] formatearABytesFijos(String nombreCampo, String texto, int longitudFija) {
         byte[] byteOriginales = texto.getBytes(StandardCharsets.UTF_8);
         if (byteOriginales.length > longitudFija) {
@@ -240,26 +307,4 @@ class GestorFichero {
         return bytesResultantes;
     }
 
-
-    public boolean modificarPorPosicion(int posicion, String nuevaMarca, String nuevoModelo) throws IOException {
-        try (RandomAccessFile raf = new RandomAccessFile(this.rutaFichero, "rws")){
-            long posicionFisica = (long) posicion * TAMAÑO_TOTAL;
-            if (posicionFisica >= raf.length()) return false;
-
-            raf.seek(posicionFisica);
-            byte[] primerByte = new byte[1];
-            raf.read(primerByte);
-
-            if (primerByte[0] == 0) return false;
-
-            raf.seek(posicionFisica + TAMAÑO_MATRICULA);
-
-            byte[] bufferMarca = formatearABytesFijos("Marca", nuevaMarca, TAMAÑO_MARCA);
-            byte[] bufferModelo = formatearABytesFijos("Modelo", nuevoModelo, TAMAÑO_MODELO);
-
-            raf.write(bufferMarca);
-            raf.write(bufferModelo);
-            return true;
-        }
-    }
 }
