@@ -22,14 +22,23 @@ class GestorFichero {
 
     /**
      * Insertar un registro en una posicion concreta
-     * @param posicion Posicion donde insertar el registro
+     * @param posicion Posicion desde 0 hasta el numero de registros (para insertar al final)
      * @param matricula Matricula del vehiculo
      * @param marca Marca del vehiculo
      * @param modelo Modelo del vehiculo
      * @throws IOException Si ocurre un error de lectura o escritura.
-     * @throws IllegalArgumentException Si la matricula ya existe
+     * @throws IllegalArgumentException Si la posicion o los datos no son validos, o la matricula ya existe
      */
     public void insertarEnPosicion(int posicion, String matricula, String marca, String modelo) throws IOException {
+        if (posicion < 0) {
+            throw new IllegalArgumentException("La posicion no puede ser negativa");
+        }
+        matricula = normalizarMatricula(matricula);
+        if (matricula.isEmpty()) {
+            throw new IllegalArgumentException("La matricula no puede estar vacia");
+        }
+        // Validar todos los campos antes de desplazar o escribir registros.
+        byte[] nuevoRegistro = construirRegistro(matricula, marca, modelo);
         if (existeMatricula(matricula)) {
             throw new IllegalArgumentException("Error: La matricula " + matricula + " ya existe");
         }
@@ -39,7 +48,7 @@ class GestorFichero {
         try(RandomAccessFile raf = new RandomAccessFile(this.rutaFichero, "rws")) {
             long totalRegistros = raf.length() / TAMAÑO_TOTAL;
             if (posicion > totalRegistros) {
-                posicion = (int) totalRegistros;
+                throw new IllegalArgumentException("La posicion debe estar entre 0 y " + totalRegistros);
             }
 
             // Desplazar los registros desde el final hasta la pocision de insercion
@@ -51,8 +60,7 @@ class GestorFichero {
                 raf.write(buffer);
             }
 
-            // Preparar y escribir el registro
-            byte[] nuevoRegistro = construirRegistro(matricula, marca, modelo);
+            // Escribir el registro ya validado en el hueco disponible.
             raf.seek((long) posicion * TAMAÑO_TOTAL);
             raf.write(nuevoRegistro);
         }
@@ -172,6 +180,7 @@ class GestorFichero {
      */
 
     public boolean borrarPorPosicion(int posicion) throws IOException {
+        if (posicion < 0) return false;
         try (RandomAccessFile raf = new RandomAccessFile(this.rutaFichero, "rws")){
             if ((long) posicion * TAMAÑO_TOTAL >= raf.length()) {
                 return false;
@@ -190,6 +199,7 @@ class GestorFichero {
      */
 
     public boolean borrarPorMatricula(String matricula) throws IOException {
+        matricula = normalizarMatricula(matricula);
         try (RandomAccessFile raf = new RandomAccessFile(this.rutaFichero, "rws")){
             long total = raf.length() / TAMAÑO_TOTAL;
             for (int i = 0; i < total; i++) {
@@ -219,6 +229,7 @@ class GestorFichero {
      */
 
     public boolean modificarPorPosicion(int posicion, String nuevaMarca, String nuevoModelo) throws IOException {
+        if (posicion < 0) return false;
         try (RandomAccessFile raf = new RandomAccessFile(this.rutaFichero, "rws")){
             long posicionFisica = (long) posicion * TAMAÑO_TOTAL;
             if (posicionFisica >= raf.length()) return false;
@@ -248,6 +259,7 @@ class GestorFichero {
      * Verifica si la matrícula ya existe en el fichero.
      */
     public boolean existeMatricula(String matricula) throws IOException {
+        matricula = normalizarMatricula(matricula);
         File f = new File(this.rutaFichero);
         if (!f.exists()) return false;
 
@@ -265,6 +277,19 @@ class GestorFichero {
             }
         }
         return false;
+    }
+
+    /**
+     * Elimina espacios para insertar, buscar y borrar
+     * @param matricula Matricula introducida
+     * @return Matricula sin espacios exteriores
+     * @throws IllegalArgumentException Si la matricula es null
+     */
+    private String normalizarMatricula(String matricula) {
+        if (matricula == null) {
+            throw new IllegalArgumentException("La matricula no puede ser null");
+        }
+        return matricula.trim();
     }
 
     /**

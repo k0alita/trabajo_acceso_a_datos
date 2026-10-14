@@ -111,6 +111,10 @@ public class Main {
         scanner.close();
 
     }
+
+    /**
+     * Muestra el menú principal del programa.
+     */
     private static void mostrarMenu() {
         System.out.println("\n--- GESTOR DE VEHÍCULOS ---");
         System.out.println("1. Insertar coche en una posición");
