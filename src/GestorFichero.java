@@ -1,7 +1,6 @@
 import java.awt.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -27,7 +26,7 @@ class GestorFichero {
      * @param matricula Matricula del vehiculo
      * @param marca Marca del vehiculo
      * @param modelo Modelo del vehiculo
-     * @throws IOException Si se introducen los datos mal
+     * @throws IOException Si ocurre un error de lectura o escritura.
      * @throws IllegalArgumentException Si la matricula ya existe
      */
     public void insertarEnPosicion(int posicion, String matricula, String marca, String modelo) throws IOException {
@@ -35,13 +34,15 @@ class GestorFichero {
             throw new IllegalArgumentException("Error: La matricula " + matricula + " ya existe");
         }
 
+        // "rws" permite leer y escribir, sincronizando los cambios de contenido
+        // El try cierra el fichero automáticamente.
         try(RandomAccessFile raf = new RandomAccessFile(this.rutaFichero, "rws")) {
             long totalRegistros = raf.length() / TAMAÑO_TOTAL;
             if (posicion > totalRegistros) {
                 posicion = (int) totalRegistros;
             }
 
-            // Desplazar los registros desde el final hasya la pocision de insercion
+            // Desplazar los registros desde el final hasta la pocision de insercion
             byte[] buffer = new byte[TAMAÑO_TOTAL];
             for (long i = totalRegistros - 1; i>= posicion ; i--) {
                 raf.seek(i * TAMAÑO_TOTAL);
@@ -56,6 +57,13 @@ class GestorFichero {
             raf.write(nuevoRegistro);
         }
     }
+
+    /**
+     * Importa vehículos desde un CSV y los añade al final del fichero.
+     * Omite líneas vacías, la cabecera inicial, matrículas duplicadas.
+     * @return Número de registros insertados correctamente.
+     * @throws IOException Si ocurre un error de lectura o escritura.
+     */
 
     public int cargarCsv(String rutaCSV, String delimitador) throws IOException{
         File ficheroCSV = new File(rutaCSV);
@@ -122,7 +130,7 @@ class GestorFichero {
     /**
      * Ordenar alfabeticamente por el campo Matricula
      * Extrae los registros actuales y los reescribe ordenados en el fichero
-     * @throws IOException Si se introducen los datos mal
+     * @throws IOException Si ocurre un error de lectura o escritura.
      */
 
     public void ordenarPorMatricula() throws IOException {
@@ -160,7 +168,7 @@ class GestorFichero {
      * Borlla un registro indicando su posicion en el fichero
      * @param posicion Posicion del regristro (desde 0)
      * @return true si la posicion es valida y se borro, false en el caso contrario
-     * @throws IOException
+     * @throws IOException Si ocurre un error de lectura o escritura.
      */
 
     public boolean borrarPorPosicion(int posicion) throws IOException {
@@ -178,7 +186,7 @@ class GestorFichero {
      * Borra un registro buscando por su matricula
      * @param matricula Matricula a borrar
      * @return true si se borro con exito, false si no se encontro
-     * @throws IOException Si se introducen los datos mal
+     * @throws IOException Si ocurre un error de lectura o escritura.
      */
 
     public boolean borrarPorMatricula(String matricula) throws IOException {
@@ -207,7 +215,7 @@ class GestorFichero {
      * @param nuevaMarca Nueva marca a guardar
      * @param nuevoModelo Nuevo modelo a guardar
      * @return true si se modifico, false si la posicion no existe o el registro esta borrado
-     * @throws IOException Si se introducen los datos mal
+     * @throws IOException Si ocurre un error de lectura o escritura.
      */
 
     public boolean modificarPorPosicion(int posicion, String nuevaMarca, String nuevoModelo) throws IOException {
@@ -260,7 +268,7 @@ class GestorFichero {
     }
 
     /**
-     * Rellena el espacion de un registro con bytes a 0 para simular el borrado
+     * Rellena el espacio de un registro con bytes a 0 para simular el borrado
      */
     private void marcarComoBorrado(RandomAccessFile raf, long posicion) throws IOException {
         raf.seek(posicion * TAMAÑO_TOTAL);
