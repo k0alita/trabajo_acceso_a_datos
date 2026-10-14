@@ -88,6 +88,7 @@ public class Main {
 
                         int totalImportados = gestor.cargarCsv(rutaCSV, delimitador);
                         System.out.println("Proceso finalizado. Registros cargados con éxito: " + totalImportados);
+                        break;
                     case 7:
                         salir = true;
                         System.out.println("Saliendo del programa...");
